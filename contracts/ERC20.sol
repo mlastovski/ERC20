@@ -2,13 +2,13 @@
 pragma solidity ^0.8.11;
 
 import "hardhat/console.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract ERC20 {
+contract ERC20 is AccessControl {
     string private _tokenName;
     string private _tokenSymbol;
     uint8 private _tokenDecimals;
     uint256 private _tokenTotalSupply;
-    address private immutable owner;
 
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowed;
@@ -17,12 +17,7 @@ contract ERC20 {
         _tokenName = _name;
         _tokenSymbol = _symbol;
         _tokenDecimals = _decimals;
-        owner = msg.sender;
-    }
-
-    modifier onlyOwner {
-        require(msg.sender == owner, "You are not an owner");
-        _;
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
@@ -80,7 +75,7 @@ contract ERC20 {
         return _allowed[_owner][_spender];
     }
 
-    function mint(address _to, uint256 _value) public onlyOwner returns (bool success) {
+    function mint(address _to, uint256 _value) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bool success) {
         _tokenTotalSupply += _value;
         _balances[_to] += _value;
 
@@ -88,7 +83,7 @@ contract ERC20 {
         return true;
     }
 
-    function burn(address _from, uint256 _value) public onlyOwner returns (bool success) {
+    function burn(address _from, uint256 _value) public onlyRole(DEFAULT_ADMIN_ROLE) returns (bool success) {
         require(_balances[_from] >= _value, "Insufficient balance");
         _balances[_from] -= _value;
         _tokenTotalSupply -= _value;
