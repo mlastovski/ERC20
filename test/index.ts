@@ -117,13 +117,23 @@ describe("Staking", function () {
 
     await staking.claim();
 
-    const info = await staking.getStakeInfo(owner.address);
-    console.log(info);
-
     const afterBalance = BigNumber.from(await lpToken.balanceOf(owner.address));
     const finalBalance = afterBalance.sub(initialBalance).toString();
 
     expect(finalBalance).to.equal(parseEther("0"));
+  });
+
+  it("Staking: Should not claim (Less than minRewardsTimestamp)", async function () {
+    await setAdminRole(staking.address);
+    await sendLp(owner.address, parseEther("0.001"));
+    await lpToken.approve(staking.address, parseEther("0.001"));
+    await staking.stake(parseEther("0.001"));
+
+    // skipping time
+    await ethers.provider.send('evm_increaseTime', [9 * minutes]);
+    await ethers.provider.send('evm_mine', []);
+
+    await expect(staking.claim()).to.be.revertedWith("Less than minRewardsTimestamp");
   });
 
   it("Staking: Should not claim (No CRT to claim)", async function () {
