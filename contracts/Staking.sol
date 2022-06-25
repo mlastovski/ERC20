@@ -17,7 +17,6 @@ contract Staking {
     struct Stake {
         uint256 balance;
         uint256 timestamp;
-        uint256 claimed;
     }
 
     mapping(address => Stake) internal _stakes;
@@ -36,27 +35,24 @@ contract Staking {
     event Unstaked(address _from, uint256 amount);
 
     function stake(uint256 amount) public {
-        require(amount > 0, "Zero stake");
-
-        lpToken.transferFrom(msg.sender, address(this), amount);
-
         if(_stakes[msg.sender].balance > 0) {
-            // claim
-            _stakes[msg.sender].balance += amount;
-            _stakes[msg.sender].timestamp = block.timestamp;
-        } else {
-            _stakes[msg.sender] = Stake({balance: amount, timestamp: block.timestamp, claimed: 0});
+            require(block.timestamp - _stakes[msg.sender].timestamp >= minRewardsTimestamp, "Less than minRewardsTimestamp");
+            claim();
         }
+
+        lpToken.approve(address(this), amount);
+        lpToken.transferFrom(msg.sender, address(this), amount);
+        _stakes[msg.sender].balance += amount;
+        _stakes[msg.sender].timestamp = block.timestamp;
 
         emit Staked(msg.sender, amount);
     }
 
     function claim() public {
-        require(_stakes[msg.sender].timestamp != 0, "Zero timestamp");
+        require(block.timestamp - _stakes[msg.sender].timestamp >= minRewardsTimestamp, "Less than minRewardsTimestamp");
         uint256 rewardInCRT = _calculateRewards(msg.sender);
         require(_stakes[msg.sender].balance > 0 && rewardInCRT > 0, "No CRT to claim");
 
-        _stakes[msg.sender].claimed += rewardInCRT;
         crt.mint(msg.sender, rewardInCRT);
         _stakes[msg.sender].timestamp = block.timestamp;
 
@@ -74,28 +70,18 @@ contract Staking {
         emit Unstaked(msg.sender, totalBalance);
     }
 
-    function getStakeInfo(address _from) public view returns (uint256 _balance, uint256 _timestamp, uint256 _rewards, uint256 _claimed) {
-        return(_stakes[_from].balance, _stakes[_from].timestamp, _calculateRewards(_from), _stakes[_from].claimed);
+    function getStakeInfo(address _from) public view returns (uint256 _balance, uint256 _timestamp, uint256 _rewards) {
+        return(_stakes[_from].balance, _stakes[_from].timestamp, _calculateRewards(_from));
     }
 
     function getStakeSettings() public view returns (uint256 _interest, uint256 _minRewardsTimestamp, uint256 _minUnstakeFreezeTime) {
         return(interest, minRewardsTimestamp, minUnstakeFreezeTime);
     }
 
-    function modifyInterest(uint256 _interest) public onlyOwner returns (bool success) {
+    function modifyStakeSettings(uint256 _interest, uint256 _rewardsInMinutes, uint256 _unstakeFreezeInMinutes) public onlyOwner returns (bool success) {
         interest = _interest;
-
-        return true;
-    }
-
-    function modifyRewardsTime(uint256 _timeInMinutes) public onlyOwner returns (bool success) {
-        minRewardsTimestamp = _timeInMinutes * 1 minutes;
-
-        return true;
-    }
-
-    function modifyUnstakeFreezeTime(uint256 _timeInMinutes) public onlyOwner returns (bool success) {
-        minUnstakeFreezeTime = _timeInMinutes * 1 minutes;
+        minRewardsTimestamp = _rewardsInMinutes * 1 minutes;
+        minUnstakeFreezeTime = _unstakeFreezeInMinutes * 1 minutes;
 
         return true;
     }

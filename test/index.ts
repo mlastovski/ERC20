@@ -43,25 +43,25 @@ describe("Staking", function () {
     staking = await Staking.deploy();
     await staking.deployed();
     lpToken = await ethers.getContractAt("IERC20", "0xb5C2dd7609De028091e49803A4F36E2A1cC187Ff");
-    await staking.connect(owner).modifyInterest(20);
-    await staking.connect(owner).modifyRewardsTime(10);
-    await staking.connect(owner).modifyUnstakeFreezeTime(20);
+    await staking.connect(owner).modifyStakeSettings(20, 10, 20);
   });
 
   // TODO: expect await value check
   it("Staking : Should configure stake settings", async function () {
     // 20 means 20%
-    await staking.connect(owner).modifyInterest(10);
+    await staking.connect(owner).modifyStakeSettings(10, 20, 30);
 
-    // 10 means 10 minutes
-    await staking.connect(owner).modifyRewardsTime(20);
+    const stakeSettings = await staking.getStakeSettings();
+    
+    expect(stakeSettings[0]).to.equal(10); 
 
-    // 20 means 20 minutes
-    await staking.connect(owner).modifyUnstakeFreezeTime(30);
+    // here time is in seconds, so 20 minutes = 1200 seconds
+    expect(stakeSettings[1]).to.equal(1200);
+    expect(stakeSettings[2]).to.equal(1800);
   });
 
   it("Staking : Should fail to configure stake settings (You are not an owner)", async function () {
-    expect(staking.connect(addr1).modifyInterest(10)).to.be.revertedWith("You are not an owner");
+    expect(staking.connect(addr1).modifyStakeSettings(10, 20, 40)).to.be.revertedWith("You are not an owner");
   });
 
   it("Staking: Should stake and calculate rewards", async function () {
@@ -79,16 +79,22 @@ describe("Staking", function () {
     expect(Number(rewards)).to.be.lessThan(222222222200000);
   });
 
-  it("Staking: Should fail to stake (Zero stake)", async function () {
-    await sendLp(owner.address, parseEther("0.001"));
-    await lpToken.approve(staking.address, parseEther("0.001"));
-    await expect(staking.stake(parseEther("0"))).to.be.revertedWith("Zero stake");
-  });
-
-  it("Staking: Should stake twice", async function () {
+  it("Staking: Should fail to stake twice (Less than minRewardsTimestamp)", async function () {
     await sendLp(owner.address, parseEther("0.002"));
     await lpToken.approve(staking.address, parseEther("0.002"));
     await staking.stake(parseEther("0.001"));
+    await expect(staking.stake(parseEther("0.001"))).to.be.revertedWith("Less than minRewardsTimestamp");
+  });
+
+  it("Staking: Should stake twice", async function () {
+    await setAdminRole(staking.address);
+    await sendLp(owner.address, parseEther("0.002"));
+    await lpToken.approve(staking.address, parseEther("0.002"));
+    await staking.stake(parseEther("0.001"));
+
+    await ethers.provider.send('evm_increaseTime', [21 * minutes]);
+    await ethers.provider.send('evm_mine', []);
+    
     await staking.stake(parseEther("0.001"));
     expect(await lpToken.balanceOf(staking.address)).to.equal(parseEther("0.002"));
   });
@@ -111,24 +117,23 @@ describe("Staking", function () {
 
     await staking.claim();
 
+    const info = await staking.getStakeInfo(owner.address);
+    console.log(info);
+
     const afterBalance = BigNumber.from(await lpToken.balanceOf(owner.address));
     const finalBalance = afterBalance.sub(initialBalance).toString();
 
     expect(finalBalance).to.equal(parseEther("0"));
   });
 
-  it("Staking: Should not claim (Zero timestamp)", async function () {
-    expect(staking.claim()).to.be.revertedWith("Zero timestamp"); 
-  });
-
   it("Staking: Should not claim (No CRT to claim)", async function () {
     await setAdminRole(staking.address);
     await sendLp(owner.address, parseEther("0.001"));
     await lpToken.approve(staking.address, parseEther("0.001"));
-    await staking.stake(parseEther("0.001"));
+    await staking.stake(parseEther("0"));
 
     // skipping time
-    await ethers.provider.send('evm_increaseTime', [5 * minutes]);
+    await ethers.provider.send('evm_increaseTime', [40 * minutes]);
     await ethers.provider.send('evm_mine', []);
 
     await expect(staking.claim()).to.be.revertedWith("No CRT to claim");
@@ -174,7 +179,6 @@ describe("Staking", function () {
 
     expect(stakeInfo[0]).to.equal(parseEther("0.001")); 
     expect(stakeInfo[2]).to.equal(BigNumber.from("0"));
-    expect(stakeInfo[3]).to.equal(BigNumber.from("0"));
   });
 
   it("Staking: Should getStakeSettings", async function () {
