@@ -17,6 +17,8 @@ import "./tasks/transferFrom.ts";
 import "./tasks/stake.ts";
 import "./tasks/unstake.ts";
 import "./tasks/claim.ts";
+import "./tasks/getStakeInfo";
+import "./tasks/getStakeSettings.ts";
 
 dotenv.config();
 
