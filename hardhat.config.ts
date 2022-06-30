@@ -6,7 +6,17 @@ import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
-import "./tasks/tasks.ts"
+// import "./tasks/tasks.ts";
+import "./tasks/mint.ts";
+import "./tasks/burn.ts";
+import "./tasks/allowance.ts";
+import "./tasks/approve.ts";
+import "./tasks/balance.ts";
+import "./tasks/transfer.ts";
+import "./tasks/transferFrom.ts";
+import "./tasks/stake.ts";
+import "./tasks/unstake.ts";
+import "./tasks/claim.ts";
 
 dotenv.config();
 

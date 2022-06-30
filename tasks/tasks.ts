@@ -1,4 +1,3 @@
-// Написать таски на transfer, transferFrom, approve, mint, burn
 import { task, types } from "hardhat/config";
 import "@nomiclabs/hardhat-waffle";
 import { ethers } from "hardhat";
