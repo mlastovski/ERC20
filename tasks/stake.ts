@@ -4,10 +4,10 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { Contract, ContractFactory, providers } from "ethers";
 
 const contractAddress = "0xB51A453d5DE3584E5503FD63CbF76A6978F9D37b";
+const lpHolderAddress = "0x71c916C1A79cc66bfD39a2cc6f7B4feEd589d21e";
 let Staking: ContractFactory;
 let stakingContract: Contract;
 let owner: SignerWithAddress;
-const lpHolderAddress = "0x71c916C1A79cc66bfD39a2cc6f7B4feEd589d21e";
 let lpHolder: providers.JsonRpcSigner;
 let lpToken: Contract;
 
@@ -30,6 +30,7 @@ task("stake", "Stakes LP tokens")
     await network.provider.request({method: "hardhat_stopImpersonatingAccount", params: [lpHolderAddress]});
     await lpToken.connect(owner).approve(contractAddress, taskArgs.amount);
 
+    // Make better output
     const transaction = await stakingContract.stake(taskArgs.amount);
     await transaction.wait();
     console.log(transaction);
